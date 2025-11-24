@@ -1,60 +1,101 @@
-name: Build AOSP with MicroG and Aurora
+name: Build AOSP Modules Incremental
 
 on:
-  workflow_dispatch:   # lo lanzas manualmente
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-gmscore:
     runs-on: ubuntu-22.04
-
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y openjdk-11-jdk git-core gnupg flex bison gperf build-essential \
-          zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev \
-          x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip \
-          python3 python-is-python3
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk git-core build-essential zip curl
 
-    - name: Download AOSP
-      run: |
-        mkdir aosp
-        cd aosp
-        repo init -u https://android.googlesource.com/platform/manifest -b android-12.1.0_r1
-        repo sync -j$(nproc)
+      - name: Download AOSP minimal
+        run: |
+          mkdir aosp && cd aosp
+          repo init -u https://android.googlesource.com/platform/manifest -b android-12.1.0_r1
+          repo sync -j$(nproc) packages/apps/GmsCore frameworks/base system/sepolicy
 
-    - name: Copy MicroG and Aurora into AOSP
-      run: |
-        cp -r GmsCore aosp/packages/apps/GmsCore
-        cp -r GsfProxy aosp/packages/apps/GsfProxy
-        cp -r AuroraStore aosp/packages/apps/AuroraStore
+      - name: Apply Android/data & obb patch
+        run: |
+          cd aosp
+          git apply ../patches/allow_data_obb.patch
 
-        # Añadir al producto
-        echo "PRODUCT_PACKAGES += GmsCore GsfProxy AuroraStore" >> aosp/device/generic/common/device.mk
+      - name: Copy GmsCore
+        run: cp -r GmsCore aosp/packages/apps/GmsCore
 
-    - name: Enable Android/data and obb permissions
-      run: |
-        # Parche rápido: modificar sepolicy o config para permitir acceso
-        # Aquí puedes aplicar tu patch personalizado
-        echo "Permisos Android/data y obb habilitados"
+      - name: Build GmsCore
+        run: |
+          cd aosp
+          source build/envsetup.sh
+          lunch aosp_arm64-eng
+          make GmsCore -j$(nproc)
 
-    - name: Build AOSP
-      run: |
-        cd aosp
-        source build/envsetup.sh
-        lunch aosp_arm64-eng
-        make -j$(nproc)
+      - name: Upload GmsCore APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: GmsCore
+          path: aosp/out/target/product/*/system/app/GmsCore/*.apk
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: aosp-build
-        path: |
-          aosp/out/target/product/*/*.img
-          aosp/out/target/product/*/*.zip
+      - name: Cleanup
+        run: rm -rf aosp
+
+  build-gsfproxy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk git-core build-essential zip curl
+      - name: Download AOSP minimal
+        run: |
+          mkdir aosp && cd aosp
+          repo init -u https://android.googlesource.com/platform/manifest -b android-12.1.0_r1
+          repo sync -j$(nproc) packages/apps/GsfProxy frameworks/base system/sepolicy
+      - name: Apply Android/data & obb patch
+        run: cd aosp && git apply ../patches/allow_data_obb.patch
+      - name: Copy GsfProxy
+        run: cp -r GsfProxy aosp/packages/apps/GsfProxy
+      - name: Build GsfProxy
+        run: |
+          cd aosp
+          source build/envsetup.sh
+          lunch aosp_arm64-eng
+          make GsfProxy -j$(nproc)
+      - name: Upload GsfProxy APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: GsfProxy
+          path: aosp/out/target/product/*/system/app/GsfProxy/*.apk
+      - name: Cleanup
+        run: rm -rf aosp
+
+  build-aurora:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk git-core build-essential zip curl
+      - name: Download AOSP minimal
+        run: |
+          mkdir aosp && cd aosp
+          repo init -u https://android.googlesource.com/platform/manifest -b android-12.1.0_r1
+          repo sync -j$(nproc) packages/apps/AuroraStore frameworks/base system/sepolicy
+      - name: Apply Android/data & obb patch
+        run: cd aosp && git apply ../patches/allow_data_obb.patch
+      - name: Copy AuroraStore
+        run: cp -r AuroraStore aosp/packages/apps/AuroraStore
+      - name: Build AuroraStore
+        run: |
+          cd aosp
+          source build/envsetup.sh
+          lunch aosp_arm64-eng
+          make AuroraStore -j$(nproc)
+      - name: Upload AuroraStore APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: AuroraStore
+          path: aosp/out/target/product/*/system/app/AuroraStore/*.apk
+      - name: Cleanup
+        run: rm -rf aosp
