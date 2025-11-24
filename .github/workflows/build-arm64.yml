@@ -7,7 +7,7 @@ jobs:
   build-gmscore:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk git-core build-essential zip curl
@@ -34,7 +34,7 @@ jobs:
           make GmsCore -j$(nproc)
 
       - name: Upload GmsCore APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: GmsCore
           path: aosp/out/target/product/*/system/app/GmsCore/*.apk
@@ -45,7 +45,7 @@ jobs:
   build-gsfproxy:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk git-core build-essential zip curl
       - name: Download AOSP minimal
@@ -64,7 +64,7 @@ jobs:
           lunch aosp_arm64-eng
           make GsfProxy -j$(nproc)
       - name: Upload GsfProxy APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: GsfProxy
           path: aosp/out/target/product/*/system/app/GsfProxy/*.apk
@@ -74,7 +74,7 @@ jobs:
   build-aurora:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install deps
         run: sudo apt-get update && sudo apt-get install -y openjdk-11-jdk git-core build-essential zip curl
       - name: Download AOSP minimal
@@ -93,7 +93,7 @@ jobs:
           lunch aosp_arm64-eng
           make AuroraStore -j$(nproc)
       - name: Upload AuroraStore APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: AuroraStore
           path: aosp/out/target/product/*/system/app/AuroraStore/*.apk
