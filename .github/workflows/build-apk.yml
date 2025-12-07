@@ -23,6 +23,8 @@ jobs:
 
       - name: Build GmsCore
         run: ./gradlew assembleRelease
+        env:
+          GRADLE_MICROG_VERSION_WITHOUT_GIT: 1
 
       - name: Upload GmsCore APK
         uses: actions/upload-artifact@v4
