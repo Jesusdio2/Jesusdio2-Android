@@ -3,6 +3,9 @@ name: Download PackageManagerServiceUtils
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   download-utils:
     runs-on: ubuntu-22.04
