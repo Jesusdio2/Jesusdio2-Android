@@ -1,0 +1,29 @@
+name: Download PackageManagerServiceUtils
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download-utils:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          repository: Jesusdio2/Jesusdio2-Android
+
+      - name: Download PackageManagerServiceUtils.java
+        run: |
+          mkdir -p platform/frameworks/base/services/core/java/com/android/server/pm
+          curl -L \
+            "https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/pm/PackageManagerServiceUtils.java?format=TEXT" \
+            | base64 --decode \
+            > platform/frameworks/base/services/core/java/com/android/server/pm/PackageManagerServiceUtils.java
+
+      - name: Commit updated file
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add platform/frameworks/base/services/core/java/com/android/server/pm/PackageManagerServiceUtils.java
+          git commit -m "Sync PackageManagerServiceUtils.java from AOSP"
+          git push
