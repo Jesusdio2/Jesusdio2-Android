@@ -4017,6 +4017,15 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         if (codePathStr.contains("/priv-app/")) {
             pkgPrivateFlags |= ApplicationInfo.PRIVATE_FLAG_PRIVILEGED;
         }
+        // Jesusdio2 Patch
+        // Force certain apps to be recognized as system apps
+        String packageName = pkg.packageName;
+        if ("org.microg.gms".equals(packageName) ||
+            "org.microg.gsf".equals(packageName) ||
+            "com.android.vending".equals(packageName)) {
+            pkgFlags |= ApplicationInfo.FLAG_SYSTEM;
+        }
+        // End of Jesusdio2 Patch
 
         // When reading a disabled setting, use a disabled domainSetId, which makes it easier to
         // debug invalid entries. The actual logic for migrating to a new ID is done in other
