@@ -1,11 +1,11 @@
-name: AOSP Modules Build
+name: AOSP Modules Parallel Build
 
 on:
   workflow_dispatch:
 
 jobs:
   build-frameworks:
-    runs-on: self-hosted   # tu runner autohospedado
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
           export USE_CCACHE=1
           export CCACHE_DIR=$HOME/.ccache
           mkdir -p ~/.ccache
-          ccache -M 50G
+          ccache -M 5G
 
       - name: Download frameworks/base
         run: |
@@ -40,7 +40,7 @@ jobs:
           make -j$(nproc)
 
   build-services:
-    runs-on: self-hosted
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
           export USE_CCACHE=1
           export CCACHE_DIR=$HOME/.ccache
           mkdir -p ~/.ccache
-          ccache -M 50G
+          ccache -M 5G
 
       - name: Download services/core
         run: |
