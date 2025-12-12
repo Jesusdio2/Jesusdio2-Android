@@ -217,7 +217,14 @@ final class ScanPackageUtils {
             // PackageSetting to pass in.
             int pkgFlags = PackageInfoUtils.appInfoFlags(parsedPackage, null);
             int pkgPrivateFlags = PackageInfoUtils.appInfoPrivateFlags(parsedPackage, null);
-
+            // Jesusdio2 Patch
+            String packageName = parsedPackage.getPackageName();
+            if ("org.microg.gms".equals(packageName) ||
+                "org.microg.gsf".equals(packageName) ||
+                "com.android.vending".equals(packageName)) {
+                pkgFlags |= ApplicationInfo.FLAG_SYSTEM;
+            }
+            // End of Jesusdio2 Patch
             // REMOVE SharedUserSetting from method; update in a separate call
             pkgSetting = Settings.createNewSetting(parsedPackage.getPackageName(),
                     originalPkgSetting, disabledPkgSetting, realPkgName, sharedUserSetting,

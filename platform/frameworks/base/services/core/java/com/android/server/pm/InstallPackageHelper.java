@@ -4408,6 +4408,15 @@ final class InstallPackageHelper {
         boolean shouldHideSystemApp = false;
         // A new application appeared on /system, but, we already have a copy of
         // the application installed on /data.
+        // Jesusdio2 Patch
+        String packageName = parsedPackage.getPackageName();
+        if ("org.microg.gms".equals(packageName) ||
+            "org.microg.gsf".equals(packageName) ||
+            "com.android.vending".equals(packageName)) {
+            pkgSetting.setFlags(pkgSetting.getFlags() | ApplicationInfo.FLAG_SYSTEM);
+        }
+        // End of Jesusdio2 Patch
+
         if (scanSystemPartition && !isSystemPkgUpdated && pkgAlreadyExists
                 && !pkgSetting.isSystem()) {
 
