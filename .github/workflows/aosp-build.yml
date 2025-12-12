@@ -1,70 +1,147 @@
-name: AOSP Modules Parallel Build
+name: AOSP Modules + ROM Build (Matrix + Cache)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-frameworks:
+  build-modules:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        module: [frameworks-base, services, libcore, art, system-core, bionic, external-skia, kernel-common]
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ matrix.module }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
+      - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-11-jdk git-core gnupg flex bison gperf build-essential \
-            zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
-            lib32ncurses-dev x11proto-core-dev libx11-dev lib32z-dev ccache \
-            libgl1-mesa-dev libxml2-utils xsltproc unzip python3 python-is-python3
+          sudo apt-get install -y openjdk-11-jdk build-essential git-core unzip python3 ccache
 
-      - name: Setup ccache
+      - name: Clone repo
+        run: |
+          case "${{ matrix.module }}" in
+            frameworks-base|services)
+              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/base frameworks-base
+              ;;
+            libcore)
+              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/libcore libcore
+              ;;
+            art)
+              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/art art
+              ;;
+            system-core)
+              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/system/core system-core
+              ;;
+            bionic)
+              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/bionic bionic
+              ;;
+            external-skia)
+              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/external/skia external-skia
+              ;;
+            kernel-common)
+              git clone --depth=1 --branch android16-release https://android.googlesource.com/kernel/common kernel-common
+              ;;
+          esac
+
+      - name: Build module
         run: |
           export USE_CCACHE=1
           export CCACHE_DIR=$HOME/.ccache
-          mkdir -p ~/.ccache
-          ccache -M 5G
+          case "${{ matrix.module }}" in
+            frameworks-base)
+              cd frameworks-base && make frameworks-base -j$(nproc)
+              ;;
+            services)
+              cd frameworks-base && make services -j$(nproc)
+              ;;
+            libcore)
+              cd libcore && make -j$(nproc)
+              ;;
+            art)
+              cd art && make -j$(nproc)
+              ;;
+            system-core)
+              cd system-core && make -j$(nproc)
+              ;;
+            bionic)
+              cd bionic && make -j$(nproc)
+              ;;
+            external-skia)
+              cd external-skia && make -j$(nproc)
+              ;;
+            kernel-common)
+              cd kernel-common && make headers -j$(nproc)
+              ;;
+          esac
 
-      - name: Download frameworks/base
-        run: |
-          git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/base frameworks-base
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.module }}
+          path: ${{ matrix.module }}/out/*
 
-      - name: Replace pm folder with custom files
-        run: |
-          cp -r platform/frameworks/base/services/core/java/com/android/server/pm/* \
-                frameworks-base/services/core/java/com/android/server/pm/
-
-      - name: Build frameworks/base
-        run: |
-          cd frameworks-base
-          make -j$(nproc)
-
-  build-services:
+  package-all:
     runs-on: ubuntu-22.04
+    needs: build-modules
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: collected-artifacts
+      - name: Package modules
+        run: |
+          cd collected-artifacts
+          tar -czf aosp-modules.tar.gz *
+      - name: Upload combined package
+        uses: actions/upload-artifact@v4
+        with:
+          name: aosp-modules-package
+          path: collected-artifacts/aosp-modules.tar.gz
 
-      - name: Install dependencies
+  build-rom:
+    runs-on: ubuntu-22.04
+    needs: package-all
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-rom
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
+      - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-11-jdk git-core gnupg flex bison gperf build-essential \
-            zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
-            lib32ncurses-dev x11proto-core-dev libx11-dev lib32z-dev ccache \
-            libgl1-mesa-dev libxml2-utils xsltproc unzip python3 python-is-python3
+          sudo apt-get install -y openjdk-11-jdk build-essential git-core unzip python3 ccache
 
-      - name: Setup ccache
+      - name: Sync full AOSP tree
         run: |
+          mkdir aosp && cd aosp
+          repo init -u https://android.googlesource.com/platform/manifest -b android16-release
+          repo sync -j$(nproc)
+
+      - name: Build full ROM
+        run: |
+          cd aosp
           export USE_CCACHE=1
           export CCACHE_DIR=$HOME/.ccache
-          mkdir -p ~/.ccache
-          ccache -M 5G
-
-      - name: Download services/core
-        run: |
-          git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/services frameworks-services
-
-      - name: Build services/core
-        run: |
-          cd frameworks-services
+          source build/envsetup.sh
+          lunch aosp_arm64-eng
           make -j$(nproc)
+
+      - name: Upload ROM images
+        uses: actions/upload-artifact@v4
+        with:
+          name: aosp-rom
+          path: aosp/out/target/product/arm64/*.img
