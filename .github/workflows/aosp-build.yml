@@ -1,11 +1,11 @@
-name: AOSP Full Build
+name: AOSP Parallel Build
 
 on:
   workflow_dispatch:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04   # más estable para AOSP
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -15,8 +15,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y openjdk-11-jdk git-core gnupg flex bison gperf build-essential \
             zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
-            lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev ccache \
+            lib32ncurses-dev x11proto-core-dev libx11-dev lib32z-dev ccache \
             libgl1-mesa-dev libxml2-utils xsltproc unzip python3
+
+      - name: Setup ccache
+        run: |
+          echo 'export USE_CCACHE=1' >> $GITHUB_ENV
+          echo 'export CCACHE_DIR=$HOME/.ccache' >> $GITHUB_ENV
+          ccache -M 10G
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
 
       - name: Download device tree
         run: |
@@ -34,7 +48,7 @@ jobs:
           cp -r platform/frameworks/base/services/core/java/com/android/server/pm/* frameworks-base/services/core/java/com/android/server/pm/
 
   build-frameworks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: prepare
     steps:
       - name: Checkout repo
@@ -46,7 +60,7 @@ jobs:
           make frameworks-base -j$(nproc)
 
   build-services:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: prepare
     steps:
       - name: Checkout repo
@@ -58,7 +72,7 @@ jobs:
           make services -j$(nproc)
 
   build-device:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: prepare
     steps:
       - name: Checkout repo
@@ -70,7 +84,7 @@ jobs:
           make generic_arm64 -j$(nproc)
 
   build-system:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: prepare
     steps:
       - name: Checkout repo
@@ -82,7 +96,7 @@ jobs:
           make systemimage -j$(nproc)
 
   package-rom:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-frameworks, build-services, build-device, build-system]
     steps:
       - name: Checkout repo
