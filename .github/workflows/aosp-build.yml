@@ -1,115 +1,46 @@
-name: AOSP Parallel Build
+name: AOSP Build (Self-Hosted)
 
 on:
   workflow_dispatch:
 
 jobs:
-  prepare:
-    runs-on: ubuntu-22.04   # más estable para AOSP
+  build:
+    runs-on: self-hosted   # usa tu runner autohospedado
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Setup environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-11-jdk git-core gnupg flex bison gperf build-essential \
-            zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
-            lib32ncurses-dev x11proto-core-dev libx11-dev lib32z-dev ccache \
-            libgl1-mesa-dev libxml2-utils xsltproc unzip python3
+          export USE_CCACHE=1
+          export CCACHE_DIR=$HOME/.ccache
+          mkdir -p ~/.ccache
+          ccache -M 100G
 
-      - name: Setup ccache
+      - name: Initialize AOSP
         run: |
-          echo 'export USE_CCACHE=1' >> $GITHUB_ENV
-          echo 'export CCACHE_DIR=$HOME/.ccache' >> $GITHUB_ENV
-          ccache -M 10G
+          mkdir -p $HOME/aosp && cd $HOME/aosp
+          repo init -u https://android.googlesource.com/platform/manifest -b android16-release
+          repo sync -j$(nproc)
 
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-
-
-      - name: Download device tree
+      - name: Apply custom pm folder
         run: |
-          curl -L https://github.com/Jesusdio2/Jesusdio2-Android/releases/download/Dev0/device.zip -o device.zip
-          unzip -o device.zip -d device/
+          cp -r $GITHUB_WORKSPACE/platform/frameworks/base/services/core/java/com/android/server/pm/* \
+                $HOME/aosp/frameworks/base/services/core/java/com/android/server/pm/
 
-      - name: Download AOSP frameworks/base (shallow + sparse)
+      - name: Apply custom device tree
         run: |
-          git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/base frameworks-base
-          cd frameworks-base
-          git sparse-checkout init --cone
-          git sparse-checkout set services/core/java/com/android/server/pm
+          unzip -o $GITHUB_WORKSPACE/device.zip -d $HOME/aosp/device/
 
-
-      - name: Replace pm folder with custom files
+      - name: Build ROM
         run: |
-          cp -r platform/frameworks/base/services/core/java/com/android/server/pm/* frameworks-base/services/core/java/com/android/server/pm/
-
-  build-frameworks:
-    runs-on: ubuntu-22.04
-    needs: prepare
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Build frameworks/base
-        run: |
-          source build/envsetup.sh || true
-          lunch aosp_arm64-eng
-          make frameworks-base -j$(nproc)
-
-  build-services:
-    runs-on: ubuntu-22.04
-    needs: prepare
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Build services/core
-        run: |
-          source build/envsetup.sh || true
-          lunch aosp_arm64-eng
-          make services -j$(nproc)
-
-  build-device:
-    runs-on: ubuntu-22.04
-    needs: prepare
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Build device/generic/arm64
-        run: |
-          source build/envsetup.sh || true
-          lunch aosp_arm64-eng
-          make generic_arm64 -j$(nproc)
-
-  build-system:
-    runs-on: ubuntu-22.04
-    needs: prepare
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Build system image
-        run: |
-          source build/envsetup.sh || true
-          lunch aosp_arm64-eng
-          make systemimage -j$(nproc)
-
-  package-rom:
-    runs-on: ubuntu-22.04
-    needs: [build-frameworks, build-services, build-device, build-system]
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Build full ROM
-        run: |
-          source build/envsetup.sh || true
+          cd $HOME/aosp
+          source build/envsetup.sh
           lunch aosp_arm64-eng
           make -j$(nproc)
-      - name: Upload ROM artifact
+
+      - name: Upload ROM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: aosp-rom
-          path: out/target/product/arm64/*.img
+          path: $HOME/aosp/out/target/product/arm64/*.img
