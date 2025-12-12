@@ -15,14 +15,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git
 
-      - name: Clone CellBroadcastReceiver
+      - name: Clone CellBroadcastReceiver (AOSP main)
         run: |
-          git clone --depth=1 https://android.googlesource.com/platform/packages/apps/CellBroadcastReceiver cellbroadcastreceiver
+          git clone --depth=1 https://android.googlesource.com/platform/packages/apps/CellBroadcastReceiver CellBroadcastReceiver
 
       - name: Copy into repo
         run: |
           mkdir -p packages/apps
-          cp -r cellbroadcastreceiver packages/apps/
+          cp -r CellBroadcastReceiver packages/apps/
 
       - name: Commit and push
         run: |
