@@ -9,6 +9,8 @@ jobs:
     steps:
       - name: Checkout your repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Git
         run: |
@@ -23,11 +25,12 @@ jobs:
         run: |
           mkdir -p packages/apps
           cp -r CellBroadcastReceiver packages/apps/
+          rm -rf packages/apps/CellBroadcastReceiver/.git
 
       - name: Commit and push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/apps/CellBroadcastReceiver
-          git commit -m "Add CellBroadcastReceiver from AOSP main"
-          git push
+          git commit -m "Add CellBroadcastReceiver from AOSP main" || echo "No changes to commit"
+          git push origin HEAD:${{ github.ref }}
