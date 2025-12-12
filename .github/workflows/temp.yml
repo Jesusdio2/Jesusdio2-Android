@@ -1,10 +1,10 @@
-name: Download CellBroadcastReceiver
+name: Sync CellBroadcastReceiver from AOSP
 
 on:
   workflow_dispatch:
 
 jobs:
-  fetch-cellbroadcastreceiver:
+  sync-cellbroadcastreceiver:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout your repo
@@ -24,6 +24,7 @@ jobs:
       - name: Copy into repo
         run: |
           mkdir -p packages/apps
+          rm -rf packages/apps/CellBroadcastReceiver
           cp -r CellBroadcastReceiver packages/apps/
           rm -rf packages/apps/CellBroadcastReceiver/.git
 
@@ -31,13 +32,16 @@ jobs:
         run: |
           find packages/apps/CellBroadcastReceiver -type l -exec rm -f {} \;
 
-      - name: Commit and push
+      - name: Commit and push (sync)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add packages/apps/CellBroadcastReceiver
-          git commit -m "Add CellBroadcastReceiver from AOSP main" || echo "No changes to commit"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-          git push origin HEAD:${{ github.ref }}
+          git commit -m "Sync CellBroadcastReceiver from latest AOSP main" || echo "No changes to commit"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}
+          git pull --rebase origin ${GITHUB_REF} || true
+          git push origin HEAD:${GITHUB_REF}
