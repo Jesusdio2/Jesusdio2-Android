@@ -262,7 +262,6 @@ import dalvik.system.VMRuntime;
 import libcore.util.EmptyArray;
 import libcore.util.HexEncoding;
 
-import java.beans.Visibility;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -6192,15 +6191,6 @@ public class PackageManagerService implements PackageSender, TestUtilityService 
 
                 // Verify: can't set installerPackageName to a package that is
                 // not signed with the same cert as the caller.
-                // Modified by Jesusdio2.
-                if (callerPackageName != null &&
-                    ("org.microg.gms".equals(callerPackageName) ||
-                     "org.microg.gsf".equals(callerPackageName) ||
-                     "com.android.vending".equals(callerPackageName))) {
-                    // Skip signature verification
-                } else {
-                    // Normal verification
-                }
                 if (installerPackageState != null) {
                     if (compareSignatures(callerSigningDetails,
                             installerPackageState.getSigningDetails())
