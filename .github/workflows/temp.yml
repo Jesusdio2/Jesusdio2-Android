@@ -1,4 +1,4 @@
-name: Download PackageManagerServiceUtils
+name: Sync pm directory from AOSP
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  download-utils:
+  sync-pm-directory:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repo
@@ -15,18 +15,34 @@ jobs:
         with:
           repository: Jesusdio2/Jesusdio2-Android
 
-      - name: Download PackageManagerServiceUtils.java
+      - name: Download pm Java files
         run: |
           mkdir -p platform/frameworks/base/services/core/java/com/android/server/pm
-          curl -L \
-            "https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/pm/PackageManagerServiceUtils.java?format=TEXT" \
-            | base64 --decode \
-            > platform/frameworks/base/services/core/java/com/android/server/pm/PackageManagerServiceUtils.java
 
-      - name: Commit updated file
+          declare -a files=(
+            PackageManagerService.java
+            PackageManagerServiceUtils.java
+            InstallPackageHelper.java
+            PackageSetting.java
+            PackageManagerShellCommand.java
+            PackageStateInternal.java
+            PackageManagerLocal.java
+            PackageManagerProperty.java
+            PackageManagerPropertyService.java
+            PackageManagerPropertyUtils.java
+          )
+
+          for file in "${files[@]}"; do
+            curl -L \
+              "https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/pm/$file?format=TEXT" \
+              | base64 --decode \
+              > platform/frameworks/base/services/core/java/com/android/server/pm/$file
+          done
+
+      - name: Commit all pm files
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add platform/frameworks/base/services/core/java/com/android/server/pm/PackageManagerServiceUtils.java
-          git commit -m "Sync PackageManagerServiceUtils.java from AOSP"
+          git add platform/frameworks/base/services/core/java/com/android/server/pm/
+          git commit -m "Sync all pm Java files from AOSP"
           git push
