@@ -1,46 +1,70 @@
-name: AOSP Build (Self-Hosted)
+name: AOSP Modules Build
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: self-hosted   # usa tu runner autohospedado
+  build-frameworks:
+    runs-on: self-hosted   # tu runner autohospedado
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup environment
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jdk git-core gnupg flex bison gperf build-essential \
+            zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
+            lib32ncurses-dev x11proto-core-dev libx11-dev lib32z-dev ccache \
+            libgl1-mesa-dev libxml2-utils xsltproc unzip python3 python-is-python3
+
+      - name: Setup ccache
         run: |
           export USE_CCACHE=1
           export CCACHE_DIR=$HOME/.ccache
           mkdir -p ~/.ccache
-          ccache -M 100G
+          ccache -M 50G
 
-      - name: Initialize AOSP
+      - name: Download frameworks/base
         run: |
-          mkdir -p $HOME/aosp && cd $HOME/aosp
-          repo init -u https://android.googlesource.com/platform/manifest -b android16-release
-          repo sync -j$(nproc)
+          git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/base frameworks-base
 
-      - name: Apply custom pm folder
+      - name: Replace pm folder with custom files
         run: |
-          cp -r $GITHUB_WORKSPACE/platform/frameworks/base/services/core/java/com/android/server/pm/* \
-                $HOME/aosp/frameworks/base/services/core/java/com/android/server/pm/
+          cp -r platform/frameworks/base/services/core/java/com/android/server/pm/* \
+                frameworks-base/services/core/java/com/android/server/pm/
 
-      - name: Apply custom device tree
+      - name: Build frameworks/base
         run: |
-          unzip -o $GITHUB_WORKSPACE/device.zip -d $HOME/aosp/device/
-
-      - name: Build ROM
-        run: |
-          cd $HOME/aosp
-          source build/envsetup.sh
-          lunch aosp_arm64-eng
+          cd frameworks-base
           make -j$(nproc)
 
-      - name: Upload ROM artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: aosp-rom
-          path: $HOME/aosp/out/target/product/arm64/*.img
+  build-services:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jdk git-core gnupg flex bison gperf build-essential \
+            zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
+            lib32ncurses-dev x11proto-core-dev libx11-dev lib32z-dev ccache \
+            libgl1-mesa-dev libxml2-utils xsltproc unzip python3 python-is-python3
+
+      - name: Setup ccache
+        run: |
+          export USE_CCACHE=1
+          export CCACHE_DIR=$HOME/.ccache
+          mkdir -p ~/.ccache
+          ccache -M 50G
+
+      - name: Download services/core
+        run: |
+          git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/services frameworks-services
+
+      - name: Build services/core
+        run: |
+          cd frameworks-services
+          make -j$(nproc)
