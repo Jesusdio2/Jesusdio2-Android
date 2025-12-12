@@ -37,11 +37,13 @@ jobs:
           curl -L https://github.com/Jesusdio2/Jesusdio2-Android/releases/download/Dev0/device.zip -o device.zip
           unzip -o device.zip -d device/
 
-      - name: Download AOSP frameworks/base
+      - name: Download AOSP frameworks/base (shallow + sparse)
         run: |
-          git clone https://android.googlesource.com/platform/frameworks/base frameworks-base
+          git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/base frameworks-base
           cd frameworks-base
-          git checkout android16-release
+          git sparse-checkout init --cone
+          git sparse-checkout set services/core/java/com/android/server/pm
+
 
       - name: Replace pm folder with custom files
         run: |
