@@ -1,4 +1,4 @@
-name: AOSP Modules + ROM Build (Matrix + Cache)
+name: AOSP Baklava Modules + ROM Build
 
 on:
   workflow_dispatch:
@@ -12,73 +12,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.module }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-
-
       - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y openjdk-11-jdk build-essential git-core unzip python3 ccache
 
-      - name: Clone repo
+      - name: Sync AOSP Baklava tree
         run: |
-          case "${{ matrix.module }}" in
-            frameworks-base|services)
-              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/base frameworks-base
-              ;;
-            libcore)
-              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/libcore libcore
-              ;;
-            art)
-              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/art art
-              ;;
-            system-core)
-              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/system/core system-core
-              ;;
-            bionic)
-              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/bionic bionic
-              ;;
-            external-skia)
-              git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/external/skia external-skia
-              ;;
-            kernel-common)
-              git clone --depth=1 --branch android16-release https://android.googlesource.com/kernel/common kernel-common
-              ;;
-          esac
+          mkdir aosp && cd aosp
+          repo init -u https://android.googlesource.com/platform/manifest -b android-16.0.0_r1
+          repo sync -j$(nproc)
 
       - name: Build module
         run: |
+          cd aosp
           export USE_CCACHE=1
           export CCACHE_DIR=$HOME/.ccache
+          source build/envsetup.sh
+          lunch aosp_arm64-eng
           case "${{ matrix.module }}" in
             frameworks-base)
-              cd frameworks-base && make frameworks-base -j$(nproc)
+              m frameworks-base
               ;;
             services)
-              cd frameworks-base && make services -j$(nproc)
+              m services
               ;;
             libcore)
-              cd libcore && make -j$(nproc)
+              m libcore
               ;;
             art)
-              cd art && make -j$(nproc)
+              m art
               ;;
             system-core)
-              cd system-core && make -j$(nproc)
+              m system-core
               ;;
             bionic)
-              cd bionic && make -j$(nproc)
+              m bionic
               ;;
             external-skia)
-              cd external-skia && make -j$(nproc)
+              m skia
               ;;
             kernel-common)
-              cd kernel-common && make headers -j$(nproc)
+              m kernel_headers
               ;;
           esac
 
@@ -86,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.module }}
-          path: ${{ matrix.module }}/out/*
+          path: aosp/out/*
 
   package-all:
     runs-on: ubuntu-22.04
@@ -99,12 +74,12 @@ jobs:
       - name: Package modules
         run: |
           cd collected-artifacts
-          tar -czf aosp-modules.tar.gz *
+          tar -czf aosp-baklava-modules.tar.gz *
       - name: Upload combined package
         uses: actions/upload-artifact@v4
         with:
-          name: aosp-modules-package
-          path: collected-artifacts/aosp-modules.tar.gz
+          name: aosp-baklava-modules-package
+          path: collected-artifacts/aosp-baklava-modules.tar.gz
 
   build-rom:
     runs-on: ubuntu-22.04
@@ -112,23 +87,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-rom
-          restore-keys: |
-            ${{ runner.os }}-ccache-
-
       - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y openjdk-11-jdk build-essential git-core unzip python3 ccache
 
-      - name: Sync full AOSP tree
+      - name: Sync full AOSP Baklava tree
         run: |
           mkdir aosp && cd aosp
-          repo init -u https://android.googlesource.com/platform/manifest -b android16-release
+          repo init -u https://android.googlesource.com/platform/manifest -b android-16.0.0_r1
           repo sync -j$(nproc)
 
       - name: Build full ROM
@@ -143,5 +110,5 @@ jobs:
       - name: Upload ROM images
         uses: actions/upload-artifact@v4
         with:
-          name: aosp-rom
+          name: aosp-baklava-rom
           path: aosp/out/target/product/arm64/*.img
