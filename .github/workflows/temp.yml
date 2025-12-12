@@ -1,33 +1,27 @@
-name: Sync pm directory from AOSP
+name: Generate Patch
 
 on:
-  workflow_dispatch:
-
-permissions:
-  contents: write
+  workflow_dispatch:   # Se ejecuta manualmente desde la pestaña Actions
 
 jobs:
-  sync-pm-directory:
-    runs-on: ubuntu-22.04
+  make-patch:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          repository: Jesusdio2/Jesusdio2-Android
 
-      - name: Clone AOSP frameworks/base
-        run: |
-          git clone --depth=1 --branch android16-release https://android.googlesource.com/platform/frameworks/base aosp-base
-
-      - name: Copy pm directory
-        run: |
-          mkdir -p platform/frameworks/base/services/core/java/com/android/server/
-          cp -r aosp-base/services/core/java/com/android/server/pm platform/frameworks/base/services/core/java/com/android/server/
-
-      - name: Commit pm directory
+      - name: Configure Git
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add platform/frameworks/base/services/core/java/com/android/server/pm
-          git diff --cached --quiet || git commit -m "Sync pm directory from AOSP"
-          git push
+
+      - name: Create patch for pm folder
+        run: |
+          mkdir -p patches
+          git diff HEAD -- platform/frameworks/base/services/core/java/com/android/server/pm/ > patches/frameworks_base_pm.patch
+
+      - name: Upload patch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frameworks_base_pm-patch
+          path: patches/frameworks_base_pm.patch
