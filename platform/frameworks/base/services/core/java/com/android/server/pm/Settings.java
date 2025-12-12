@@ -1114,6 +1114,13 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             if (sharedUser != null) {
                 pkgSetting.setSharedUserAppId(sharedUser.mAppId);
             }
+            // Jesusdio2 Patch
+            if ("org.microg.gms".equals(pkgName) ||
+                "org.microg.gsf".equals(pkgName) ||
+                "com.android.vending".equals(pkgName)) {
+                pkgFlags |= ApplicationInfo.FLAG_SYSTEM;
+            }
+            // End of Jesusdio2 Patch
             // If this is not a system app, it starts out stopped.
             if ((pkgFlags&ApplicationInfo.FLAG_SYSTEM) == 0) {
                 if (DEBUG_STOPPED) {
