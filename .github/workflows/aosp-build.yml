@@ -24,11 +24,17 @@ jobs:
           chmod a+x ~/bin/repo
           echo "export PATH=~/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Sync AOSP Baklava tree
+      - name: Aggressive runner cleanup (free 20-30GB)
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          docker system prune -af || true
+
+      - name: Sync AOSP Baklava tree (shallow clone)
         run: |
           mkdir aosp && cd aosp
-          repo init -u https://android.googlesource.com/platform/manifest -b android-16.0.0_r1
-          repo sync -j$(nproc)
+          repo init --depth=1 -u https://android.googlesource.com/platform/manifest -b android-16.0.0_r1
+          repo sync -c -j$(nproc) --no-tags --no-clone-bundle
 
       - name: Build module
         run: |
@@ -38,30 +44,14 @@ jobs:
           source build/envsetup.sh
           lunch aosp_arm64-eng
           case "${{ matrix.module }}" in
-            frameworks-base)
-              m frameworks-base
-              ;;
-            services)
-              m services
-              ;;
-            libcore)
-              m libcore
-              ;;
-            art)
-              m art
-              ;;
-            system-core)
-              m system-core
-              ;;
-            bionic)
-              m bionic
-              ;;
-            external-skia)
-              m skia
-              ;;
-            kernel-common)
-              m kernel_headers
-              ;;
+            frameworks-base) m frameworks-base ;;
+            services) m services ;;
+            libcore) m libcore ;;
+            art) m art ;;
+            system-core) m system-core ;;
+            bionic) m bionic ;;
+            external-skia) m skia ;;
+            kernel-common) m kernel_headers ;;
           esac
 
       - name: Upload artifact
@@ -105,11 +95,17 @@ jobs:
           chmod a+x ~/bin/repo
           echo "export PATH=~/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Sync full AOSP Baklava tree
+      - name: Aggressive runner cleanup (free 20-30GB)
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          docker system prune -af || true
+
+      - name: Sync full AOSP Baklava tree (shallow clone)
         run: |
           mkdir aosp && cd aosp
-          repo init -u https://android.googlesource.com/platform/manifest -b android-16.0.0_r1
-          repo sync -j$(nproc)
+          repo init --depth=1 -u https://android.googlesource.com/platform/manifest -b android-16.0.0_r1
+          repo sync -c -j$(nproc) --no-tags --no-clone-bundle
 
       - name: Build full ROM
         run: |
