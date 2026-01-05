@@ -12,6 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ matrix.module }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
       - name: Install deps (Java 11, Git, Python, C toolchain, repo)
         run: |
           sudo apt-get update
@@ -23,10 +31,12 @@ jobs:
           chmod a+x $HOME/bin/repo
           echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Aggressive runner cleanup (free 20-30GB)
+      - name: Aggressive runner cleanup (free 30-40GB)
         run: |
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
           docker system prune -af || true
 
       - name: Sync AOSP Baklava tree (shallow clone)
@@ -57,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.module }}
-          path: aosp/out/*
+          path: aosp/out/target/*
 
   package-all:
     runs-on: ubuntu-22.04
@@ -83,6 +93,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-rom
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
       - name: Install deps (Java 11, Git, Python, C toolchain, repo)
         run: |
           sudo apt-get update
@@ -94,10 +112,12 @@ jobs:
           chmod a+x $HOME/bin/repo
           echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Aggressive runner cleanup (free 20-30GB)
+      - name: Aggressive runner cleanup (free 30-40GB)
         run: |
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
           docker system prune -af || true
 
       - name: Sync full AOSP Baklava tree (shallow clone)
@@ -113,10 +133,10 @@ jobs:
           export CCACHE_DIR=$HOME/.ccache
           source build/envsetup.sh
           lunch aosp_arm64-eng
-          make -j$(nproc)
+          make -j$(nproc --ignore=2)
 
       - name: Upload ROM images
         uses: actions/upload-artifact@v4
         with:
           name: aosp-baklava-rom
-          path: aosp/out/target/product/arm64/*.img
+          path: aosp/out/target/product/aosp_arm64/*.img
