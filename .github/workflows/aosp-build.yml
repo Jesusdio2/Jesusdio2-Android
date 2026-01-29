@@ -142,8 +142,15 @@ jobs:
           lunch aosp_arm64-eng
           make -j$(nproc --ignore=2)
 
-      - name: Upload ROM images
+      - name: Download MindTheGapps
+        run: |
+          mkdir -p gapps && cd gapps
+          curl -L -o mindthegapps.zip https://mindthegapps.com/arm64/14.0/mindthegapps-14.0.0-arm64-20250101_123456.zip
+
+      - name: Upload ROM images + Gapps
         uses: actions/upload-artifact@v4
         with:
           name: aosp-baklava-rom
-          path: aosp/out/target/product/aosp_arm64/*.img
+          path: |
+            aosp/out/target/product/aosp_arm64/*.img
+            gapps/mindthegapps.zip
